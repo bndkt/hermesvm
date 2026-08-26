@@ -1,0 +1,49 @@
+name: release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Write the Swift Package
+        run: ./scripts/release.sh
+
+      - name: Commit Package.swift and headers
+        run: |
+          set -euo pipefail
+          source pin.env
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Package.swift Sources/hermesvmHeaders
+          if git diff --cached --quiet; then
+            echo "Package.swift already matches the pin"
+          else
+            git commit -m "Ship hermesvm ${HERMESVM_TAG} from Hermes iOS ${HERMES_IOS_VERSION}"
+            git push
+          fi
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source pin.env
+          if gh release view "${HERMESVM_TAG}" >/dev/null 2>&1; then
+            echo "Release ${HERMESVM_TAG} already exists"
+            exit 0
+          fi
+          git tag "${HERMESVM_TAG}"
+          git push origin "${HERMESVM_TAG}"
+          gh release create "${HERMESVM_TAG}" \
+            dist/hermesvm.xcframework.zip \
+            dist/hermesc \
+            --title "${HERMESVM_TAG}" \
+            --notes "Hermes iOS ${HERMES_IOS_VERSION}. Compiler and VM match."

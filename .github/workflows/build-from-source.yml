@@ -1,0 +1,73 @@
+name: build-from-source
+
+on:
+  workflow_dispatch:
+    inputs:
+      hermes_ref:
+        description: facebook/hermes git ref
+        required: true
+        default: static_h
+      version:
+        description: hermesvm release tag
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: brew install cmake ninja
+
+      - name: Clone Hermes
+        run: |
+          set -euo pipefail
+          source pin.env
+          ref="${{ inputs.hermes_ref }}"
+          git clone --filter=blob:none "${HERMES_GIT_URL}" "${RUNNER_TEMP}/hermes"
+          git -C "${RUNNER_TEMP}/hermes" checkout "${ref}"
+
+      - name: Build iPhone, iPad, and macOS hermesc
+        env:
+          BUILD_TYPE: Release
+          IOS_DEPLOYMENT_TARGET: "15.1"
+          MAC_DEPLOYMENT_TARGET: "10.13"
+        run: |
+          set -euo pipefail
+          cd "${RUNNER_TEMP}/hermes"
+          ./utils/build-apple-framework.sh build_hermesc
+          ./utils/build-apple-framework.sh macosx
+          ./utils/build-apple-framework.sh iphoneos
+          ./utils/build-apple-framework.sh iphonesimulator
+          ./utils/build-apple-framework.sh build_framework
+
+      - name: Write the Swift Package
+        run: |
+          set -euo pipefail
+          dest="${RUNNER_TEMP}/hermes/destroot"
+          ./scripts/package.sh "${dest}" "${{ inputs.version }}"
+          ./scripts/check.sh
+
+      - name: Commit, tag, and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${{ inputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Package.swift Sources/hermesvmHeaders
+          git commit -m "Ship hermesvm ${version} from facebook/hermes ${{ inputs.hermes_ref }}"
+          git push
+          git tag "${version}"
+          git push origin "${version}"
+          gh release create "${version}" \
+            dist/hermesvm.xcframework.zip \
+            dist/hermesc \
+            --title "${version}" \
+            --notes "Built from facebook/hermes ${{ inputs.hermes_ref }}. Compiler and VM match."

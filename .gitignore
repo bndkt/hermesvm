@@ -1,0 +1,5 @@
+/dist/
+/destroot/
+/extract/
+*.tar.gz
+.DS_Store
