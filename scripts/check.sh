@@ -37,7 +37,7 @@ printf '%s\n' "${list}" | grep -q "hermesvm.xcframework/ios-arm64_x86_64-simulat
 printf '%s\n' "${list}" | grep -q "hermesvm.xcframework/ios-arm64/hermesvm.framework/Headers/hermes/hermes.h"
 printf '%s\n' "${list}" | grep -q "hermesvm.xcframework/ios-arm64/hermesvm.framework/Headers/jsi/jsi.h"
 
-test -f "${root}/Sources/_hermesvmStub/empty.c"
+"${root}/scripts/check-stub.sh"
 
 file "${hermesc}" | grep -q "Mach-O"
 

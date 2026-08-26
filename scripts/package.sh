@@ -50,8 +50,9 @@ chmod +x "${hermesc_dst}"
 checksum="$(sha256sum "${zip_path}" | awk '{print $1}')"
 
 rm -rf "${root}/Sources/hermesvmHeaders"
+rm -f "${root}/Sources/_hermesvmStub/empty.c"
 mkdir -p "${root}/Sources/_hermesvmStub"
-printf '%s\n' "/* Stub so Xcode can embed the hermesvm binary target. */" > "${root}/Sources/_hermesvmStub/empty.c"
+printf '%s\n' "enum _HermesvmStub {}" > "${root}/Sources/_hermesvmStub/empty.swift"
 
 cat > "${root}/Package.swift" <<EOF
 // swift-tools-version: 5.9
@@ -72,8 +73,10 @@ let package = Package(
             checksum: "${checksum}"
         ),
         // Without at least one regular (non-binary) target, Xcode does not
-        // embed a binary XCFramework. The stub must not depend on the binary
-        // and must not publish C++ headers. See swift-package-manager#6069.
+        // embed a binary XCFramework. The stub is Swift so SwiftPM does not
+        // require Sources/_hermesvmStub/include. The stub must not depend on
+        // the binary and must not publish C++ headers.
+        // See swift-package-manager#6069.
         .target(
             name: "_hermesvmStub",
             path: "Sources/_hermesvmStub"

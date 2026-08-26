@@ -1,1 +1,0 @@
-/* Stub so Xcode can embed the hermesvm binary target. */
