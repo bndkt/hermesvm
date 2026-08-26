@@ -7,19 +7,20 @@ let package = Package(
         .iOS(.v15),
     ],
     products: [
-        .library(name: "hermesvm", targets: ["hermesvm", "hermesvmHeaders"]),
+        .library(name: "hermesvm", targets: ["hermesvm", "_hermesvmStub"]),
     ],
     targets: [
         .binaryTarget(
             name: "hermesvm",
-            url: "https://github.com/bndkt/hermesvm/releases/download/0.0.1/hermesvm.xcframework.zip",
-            checksum: "cfbe7987de678e5d3cc7b0c0d85c370692048091d773d67ff63d5cb679cc795a"
+            url: "https://github.com/bndkt/hermesvm/releases/download/0.0.2/hermesvm.xcframework.zip",
+            checksum: "188009dad6ee33aa0ff78c39b427bc684fe39aeb5b3d42c9e4bdadd78e8fbe1a"
         ),
+        // Without at least one regular (non-binary) target, Xcode does not
+        // embed a binary XCFramework. The stub must not depend on the binary
+        // and must not publish C++ headers. See swift-package-manager#6069.
         .target(
-            name: "hermesvmHeaders",
-            dependencies: ["hermesvm"],
-            path: "Sources/hermesvmHeaders",
-            publicHeadersPath: "include"
+            name: "_hermesvmStub",
+            path: "Sources/_hermesvmStub"
         ),
     ]
 )

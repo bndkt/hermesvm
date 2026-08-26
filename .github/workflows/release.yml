@@ -13,16 +13,25 @@ jobs:
       - name: Check out
         uses: actions/checkout@v4
 
+      - name: Stop if the tag already exists
+        run: |
+          set -euo pipefail
+          source pin.env
+          if gh release view "${HERMESVM_TAG}" >/dev/null 2>&1; then
+            echo "Release ${HERMESVM_TAG} already exists"
+            exit 0
+          fi
+
       - name: Write the Swift Package
         run: ./scripts/release.sh
 
-      - name: Commit Package.swift and headers
+      - name: Commit Package.swift and stub
         run: |
           set -euo pipefail
           source pin.env
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Package.swift Sources/hermesvmHeaders
+          git add Package.swift pin.env Sources/_hermesvmStub
           if git diff --cached --quiet; then
             echo "Package.swift already matches the pin"
           else

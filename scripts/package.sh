@@ -21,6 +21,19 @@ if [[ ! -x "${hermesc_src}" ]]; then
   exit 1
 fi
 
+# C++ consumers include <hermes/hermes.h> and <jsi/jsi.h>. The first-party
+# XCFramework has no Headers. Put destroot/include in each slice.
+while IFS= read -r -d '' framework; do
+  if [[ -d "${framework}/Versions" ]]; then
+    mkdir -p "${framework}/Versions/1/Headers"
+    cp -R "${include_src}/." "${framework}/Versions/1/Headers/"
+    ln -sfn "Versions/Current/Headers" "${framework}/Headers"
+  else
+    mkdir -p "${framework}/Headers"
+    cp -R "${include_src}/." "${framework}/Headers/"
+  fi
+done < <(find "${xcframework}" -name 'hermesvm.framework' -type d -print0)
+
 dist="${root}/dist"
 mkdir -p "${dist}"
 zip_path="${dist}/hermesvm.xcframework.zip"
@@ -36,12 +49,9 @@ chmod +x "${hermesc_dst}"
 
 checksum="$(sha256sum "${zip_path}" | awk '{print $1}')"
 
-headers="${root}/Sources/hermesvmHeaders/include"
-rm -rf "${headers}"
-mkdir -p "${headers}"
-cp -R "${include_src}/." "${headers}/"
-mkdir -p "${root}/Sources/hermesvmHeaders"
-printf '%s\n' "/* Header target for hermesvm. */" > "${root}/Sources/hermesvmHeaders/empty.c"
+rm -rf "${root}/Sources/hermesvmHeaders"
+mkdir -p "${root}/Sources/_hermesvmStub"
+printf '%s\n' "/* Stub so Xcode can embed the hermesvm binary target. */" > "${root}/Sources/_hermesvmStub/empty.c"
 
 cat > "${root}/Package.swift" <<EOF
 // swift-tools-version: 5.9
@@ -53,7 +63,7 @@ let package = Package(
         .iOS(.v15),
     ],
     products: [
-        .library(name: "hermesvm", targets: ["hermesvm", "hermesvmHeaders"]),
+        .library(name: "hermesvm", targets: ["hermesvm", "_hermesvmStub"]),
     ],
     targets: [
         .binaryTarget(
@@ -61,11 +71,12 @@ let package = Package(
             url: "${git_url}/releases/download/${tag}/hermesvm.xcframework.zip",
             checksum: "${checksum}"
         ),
+        // Without at least one regular (non-binary) target, Xcode does not
+        // embed a binary XCFramework. The stub must not depend on the binary
+        // and must not publish C++ headers. See swift-package-manager#6069.
         .target(
-            name: "hermesvmHeaders",
-            dependencies: ["hermesvm"],
-            path: "Sources/hermesvmHeaders",
-            publicHeadersPath: "include"
+            name: "_hermesvmStub",
+            path: "Sources/_hermesvmStub"
         ),
     ]
 )
