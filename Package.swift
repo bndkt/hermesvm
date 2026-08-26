@@ -13,7 +13,7 @@ let package = Package(
         .binaryTarget(
             name: "hermesvm",
             url: "https://github.com/bndkt/hermesvm/releases/download/0.0.1/hermesvm.xcframework.zip",
-            checksum: "428d4add7fad18970c5fe4f0f899a5d24753a61f6c5aa5ac9f4bef1545261e24"
+            checksum: "cfbe7987de678e5d3cc7b0c0d85c370692048091d773d67ff63d5cb679cc795a"
         ),
         .target(
             name: "hermesvmHeaders",
